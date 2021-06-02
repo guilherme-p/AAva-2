@@ -19,17 +19,6 @@ void *safe_malloc(int size) {
     return ptr;
 }
 
-void *safe_realloc(void *ptr, int size) {
-    void *new_ptr = (void *) realloc(ptr, size);
-
-    if (new_ptr == NULL) {
-        perror("realloc error");
-        exit(1);
-    }
-    
-    return new_ptr;
-}
-
 void safe_scanf(char *format, void *ptr) {
     if (scanf(format, ptr) <= 0) {
         perror("scanf error");
@@ -163,17 +152,14 @@ void print_bit_array(unsigned long *bit_array) {
             j++;
         }
 
-        /* printf("temp: %lu, i: %d\n", temp, i); */
+        printf("temp: %lu, i: %d, size: %d\n", temp, i, bit_array_size);
     }
 
     printf("\n");
 }
 
 void set_bit(unsigned long *bit_array, int pos) {
-    /* printf("teste, pos %d, sizeof(ul): %ld\n", pos, sizeof(unsigned long));
-    print_bit_array(bit_array); */
     bit_array[pos/64] |= 1UL << (pos % 64);
-    /* print_bit_array(bit_array); */
 }
 
 void merge_bit_arrays(unsigned long *a1, unsigned long *a2) {
@@ -340,11 +326,6 @@ void set_suffix_index_by_dfs(node *n, int label_height) {
     int i, leaf = 1;
 
     if (n == NULL) return;
- 
-    /* if (n->start != -1) {
-        print_path(n->start, *(n->end));
-        printf("suffix i: %d\n", n->suffix_index);
-    } */
 
     for (i = 0; i < ALPHABET_SIZE; i++) {
         if (n->children[i] != NULL) {
@@ -369,19 +350,11 @@ void helper_lcs(node *n, int *lcs, int label_height) {
                 set_bit(n->children[i]->bit_array, get_k(n->children[i]->suffix_index));
             }
 
-            /* printf("merge\n");
-            print_bit_array(n->bit_array); */
             merge_bit_arrays(n->bit_array, n->children[i]->bit_array);
-            /* print_bit_array(n->bit_array); */
         }
     }
 
-    /* print_path(n->start, *(n->end));
-    printf("suffix i: %d, count: %d\n", n->suffix_index, count_bits(n->bit_array)) */;
-
     count = count_bits(n->bit_array);
-    /* printf("count: %d\n", count); */
-
     lcs[count] = max(lcs[count], edge_length(n) + label_height);
 }
 
@@ -459,7 +432,7 @@ int main() {
     char **strings = NULL;
 
     safe_scanf("%d", &N);
-    bit_array_size = ((N / 64) + (N % 64 > 0) ? 1 : 0); 
+    bit_array_size = ((N / 64) + ((N % 64 > 0) ? 1 : 0)); 
 
     strings = (char **) safe_malloc(sizeof(char *) * N);
     cumulative_sizes = (int *) safe_malloc(sizeof(int) * N);
