@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ALPHABET_SIZE 256
+#define ALPHABET_SIZE 6
 
 /* ---------------- */
 /* ------misc------ */
@@ -49,6 +49,22 @@ void free_strings(char **strings, int size) {
 
 long int max(long int s1, long int s2) {
     return (s1 > s2) ? s1 : s2;
+}
+
+int get_char_index(char c) {
+    if (c == 'A') {
+        return 0;
+    } else if (c == 'C') {
+        return 1;
+    } else if (c == 'G') {
+        return 2;
+    } else if (c == 'T') {
+        return 3;
+    } else if (c == '$') {
+        return 4;
+    } else {
+        return 5;
+    }
 }
 
 /* --------------- */
@@ -125,8 +141,39 @@ int *cumulative_sizes = NULL;
 int total_size = 0;
 int bit_array_size, N;
 
+void print_bit_array(unsigned long *bit_array) {
+    int i, j;
+    unsigned long temp;
+
+    printf("bit array (reverse order): ");
+    
+    for (i = 0; i < bit_array_size; i++) {
+        temp = bit_array[i];
+        j = 0;
+
+        while (temp) {
+            printf("%ld", temp & 1);
+            temp >>= 1;
+
+            j++;
+        }
+
+        while (j < 64) {
+            printf("%c", '0');
+            j++;
+        }
+
+        /* printf("temp: %lu, i: %d\n", temp, i); */
+    }
+
+    printf("\n");
+}
+
 void set_bit(unsigned long *bit_array, int pos) {
-    bit_array[pos/64] |= 1 << (pos % 64); 
+    /* printf("teste, pos %d, sizeof(ul): %ld\n", pos, sizeof(unsigned long));
+    print_bit_array(bit_array); */
+    bit_array[pos/64] |= 1UL << (pos % 64);
+    /* print_bit_array(bit_array); */
 }
 
 void merge_bit_arrays(unsigned long *a1, unsigned long *a2) {
@@ -139,9 +186,10 @@ void merge_bit_arrays(unsigned long *a1, unsigned long *a2) {
 
 int count_bits(unsigned long *bit_array) {
     int i, count = 0;
+    unsigned long temp;
 
     for (i = 0; i < bit_array_size; i++) {
-        unsigned long temp = bit_array[i];
+        temp = bit_array[i];
 
         while (temp) {
             count += temp & 1;
@@ -177,7 +225,11 @@ node *new_node(int start, int *end) {
     n->end = end;
  
     n->suffix_index = -1;
-    n->bit_array = safe_malloc(sizeof(unsigned long) * bit_array_size);
+    n->bit_array = (unsigned long *) safe_malloc(sizeof(unsigned long) * bit_array_size);
+
+    for (i = 0; i < bit_array_size; i++) {
+        n->bit_array[i] = 0;
+    }
 
     return n;
 }
@@ -215,8 +267,8 @@ void extend_suffix_tree(int pos) {
             active_edge = pos;
         }
         
-        if (active_node->children[(unsigned char) text[active_edge]] == NULL) {
-            active_node->children[(unsigned char) text[active_edge]] = new_node(pos, &leaf_end);
+        if (active_node->children[get_char_index(text[active_edge])] == NULL) {
+            active_node->children[get_char_index(text[active_edge])] = new_node(pos, &leaf_end);
  
             if (last_new_node != NULL) {
                 last_new_node->suffix_link = active_node;
@@ -225,7 +277,7 @@ void extend_suffix_tree(int pos) {
         }
         
         else {
-            next = active_node->children[(unsigned char) text[active_edge]];
+            next = active_node->children[get_char_index(text[active_edge])];
 
             if (walk_down(next)) { 
                 continue;
@@ -244,16 +296,15 @@ void extend_suffix_tree(int pos) {
  
             split_end = (int *) safe_malloc(sizeof(int));
             *split_end = next->start + active_length - 1;
- 
             
             split = new_node(next->start, split_end);
-            active_node->children[(unsigned char) text[active_edge]] = split;
+            active_node->children[get_char_index(text[active_edge])] = split;
  
             
-            split->children[(unsigned char) text[pos]] = new_node(pos, &leaf_end);
+            split->children[get_char_index(text[pos])] = new_node(pos, &leaf_end);
             next->start += active_length;
 
-            split->children[(unsigned char) text[next->start]] = next;
+            split->children[get_char_index(text[next->start])] = next;
  
             if (last_new_node != NULL) {
                 last_new_node->suffix_link = split;
@@ -262,8 +313,6 @@ void extend_suffix_tree(int pos) {
             last_new_node = split;
         }
  
-        /* one suffix got added in tree, decrement the count of
-        suffixes yet to be added.*/
         remaining_suffix_count--;
 
         if (active_node == root && active_length > 0) {
@@ -278,7 +327,7 @@ void extend_suffix_tree(int pos) {
     }
 }
 
-void print(int i, int j) {
+void print_path(int i, int j) {
     int k;
 
     for (k = i; k <= j; k++)
@@ -292,16 +341,13 @@ void set_suffix_index_by_dfs(node *n, int label_height) {
 
     if (n == NULL) return;
  
-    if (n->start != -1 && n->start <= *(n->end)) {
-        
-        print(n->start, *(n->end));
-    }
+    /* if (n->start != -1) {
+        print_path(n->start, *(n->end));
+        printf("suffix i: %d\n", n->suffix_index);
+    } */
 
     for (i = 0; i < ALPHABET_SIZE; i++) {
         if (n->children[i] != NULL) {
-            if (leaf == 1 && n->start != -1 && n->start <= *(n->end))
-                printf(" [%d]\n", n->suffix_index);
-            
             leaf = 0;
             set_suffix_index_by_dfs(n->children[i], label_height + edge_length(n->children[i]));
         }
@@ -309,27 +355,34 @@ void set_suffix_index_by_dfs(node *n, int label_height) {
 
     if (leaf == 1) {
         n->suffix_index = total_size - label_height;
-        printf(" [%d]\n", n->suffix_index);
     }
 }
 
-void helper_lcs(node *n, int *lcs) {
+void helper_lcs(node *n, int *lcs, int label_height) {
     int i, count;
 
     for (i = 0; i < ALPHABET_SIZE; i++) {
         if (n->children[i] != NULL) {
             if (n->children[i]->suffix_index == -1) {
-                helper_lcs(n->children[i], lcs);
+                helper_lcs(n->children[i], lcs, label_height + edge_length(n));
             } else {
                 set_bit(n->children[i]->bit_array, get_k(n->children[i]->suffix_index));
             }
 
+            /* printf("merge\n");
+            print_bit_array(n->bit_array); */
             merge_bit_arrays(n->bit_array, n->children[i]->bit_array);
+            /* print_bit_array(n->bit_array); */
         }
     }
 
+    /* print_path(n->start, *(n->end));
+    printf("suffix i: %d, count: %d\n", n->suffix_index, count_bits(n->bit_array)) */;
+
     count = count_bits(n->bit_array);
-    lcs[count] = max(lcs[count], edge_length(n));
+    /* printf("count: %d\n", count); */
+
+    lcs[count] = max(lcs[count], edge_length(n) + label_height);
 }
 
 void longest_common_substrings(node *root) {
@@ -338,7 +391,7 @@ void longest_common_substrings(node *root) {
 
     for (i = 0; i < ALPHABET_SIZE; i++) {
         if (root->children[i] != NULL && root->children[i]->suffix_index == -1) {
-            helper_lcs(root->children[i], lcs);
+            helper_lcs(root->children[i], lcs, 0);
         }
     }
 
